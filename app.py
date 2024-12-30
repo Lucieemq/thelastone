@@ -1,95 +1,57 @@
 import streamlit as st
 import pickle
+import pandas as pd
 
 # 加载模型
-# 将模型文件路径改为相对路径，假设模型文件和 app.py 位于同一目录
-model_path = 'random_forest_model.pkl'
-try:
-    with open(model_path, 'rb') as file:
-        model = pickle.load(file)
-except FileNotFoundError:
-    st.error(f"Model file not found: {model_path}. Please ensure it is uploaded.")
+with open('random_forest_model.pkl', 'rb') as file:
+    model = pickle.load(file)
 
-# 网页标题
-st.title("Random Forest Model Predictor")
+# 应用标题
+st.title("灵活就业者信用风险预测 (Gig Worker Credit Risk Prediction)")
 
-# 手动设置特征范围
-feature_ranges = {
-    "Income Variability": (0, 1000),
-    "Annual Income": (0, 500000),
-    "Total Savings": (0, 200000),
-    "Loan Defaults": (0, 10),
-    "Existing Loans": (0, 10),
-    "Daily Income * Risk Tolerance": (0, 1000),
-    "Annual Income * Family Support": (0, 1000000),
-}
+# 简介
+st.write("""
+    通过输入用户特征，预测信用风险评分。适用于灵活就业者的信用风险评估。
+""")
 
-# 输入框（基于范围）
-st.header("Input Features")
-income_variability = st.number_input(
-    "Income Variability",
-    value=feature_ranges["Income Variability"][0],
-    min_value=feature_ranges["Income Variability"][0],
-    max_value=feature_ranges["Income Variability"][1],
-)
+# 用户输入
+st.header("输入用户信息 (Enter User Information)")
 
-annual_income = st.number_input(
-    "Annual Income",
-    value=feature_ranges["Annual Income"][0],
-    min_value=feature_ranges["Annual Income"][0],
-    max_value=feature_ranges["Annual Income"][1],
-)
+# 输入基础特征
+income_volatility = st.slider("收入波动 (Income Variability, 1-10)", min_value=1, max_value=10)
+annual_income = st.number_input("年收入 (Annual Income)", min_value=0.0, step=0.1)
+total_savings = st.number_input("总储蓄 (Total Savings)", min_value=0.0, step=0.1)
+loan_defaults = st.slider("贷款违约次数 (Loan Defaults)", min_value=0, max_value=10, step=1)
+existing_loans = st.slider("存量贷款数 (Existing Loans)", min_value=0, max_value=10, step=1)
+daily_income = st.number_input("日收入 (Daily Income)", min_value=0.0, step=0.1)
+risk_tolerance = st.slider("风险容忍度 (Risk Tolerance, 1-10)", min_value=1, max_value=10)
+family_support = st.slider("家庭支持水平 (Family Support, 1-10)", min_value=1, max_value=10)
 
-total_savings = st.number_input(
-    "Total Savings",
-    value=feature_ranges["Total Savings"][0],
-    min_value=feature_ranges["Total Savings"][0],
-    max_value=feature_ranges["Total Savings"][1],
-)
+# 派生特征
+daily_income_risk_tolerance = daily_income * risk_tolerance
+annual_income_family_support = annual_income * family_support
 
-loan_defaults = st.number_input(
-    "Loan Defaults",
-    value=feature_ranges["Loan Defaults"][0],
-    min_value=feature_ranges["Loan Defaults"][0],
-    max_value=feature_ranges["Loan Defaults"][1],
-)
+# 生成数据
+input_data = pd.DataFrame({
+    'Income Variability': [income_volatility],
+    'Annual Income': [annual_income],
+    'Total Savings': [total_savings],
+    'Loan Defaults': [loan_defaults],
+    'Existing Loans': [existing_loans],
+    'Daily Income * Risk Tolerance': [daily_income_risk_tolerance],
+    'Annual Income * Family Support': [annual_income_family_support]
+})
 
-existing_loans = st.number_input(
-    "Existing Loans",
-    value=feature_ranges["Existing Loans"][0],
-    min_value=feature_ranges["Existing Loans"][0],
-    max_value=feature_ranges["Existing Loans"][1],
-)
-
-daily_income_risk_tolerance = st.number_input(
-    "Daily Income * Risk Tolerance",
-    value=feature_ranges["Daily Income * Risk Tolerance"][0],
-    min_value=feature_ranges["Daily Income * Risk Tolerance"][0],
-    max_value=feature_ranges["Daily Income * Risk Tolerance"][1],
-)
-
-annual_income_family_support = st.number_input(
-    "Annual Income * Family Support",
-    value=feature_ranges["Annual Income * Family Support"][0],
-    min_value=feature_ranges["Annual Income * Family Support"][0],
-    max_value=feature_ranges["Annual Income * Family Support"][1],
-)
+# 显示输入数据
+st.subheader("输入数据 (Input Data)")
+st.write(input_data)
 
 # 预测按钮
-if st.button("Predict"):
+if st.button("预测信用风险评分 (Predict Credit Risk Score)"):
+    # 确保输入数据与模型特征一致
     try:
-        # 构建输入数据
-        input_data = [[
-            income_variability,
-            annual_income,
-            total_savings,
-            loan_defaults,
-            existing_loans,
-            daily_income_risk_tolerance,
-            annual_income_family_support
-        ]]
-        # 执行预测
         prediction = model.predict(input_data)
-        st.success(f"Predicted Credit Score: {prediction[0]}")
+        st.subheader("预测结果 (Prediction)")
+        st.write(f"信用风险评分预测值 (Predicted Credit Risk Score): {prediction[0]}")
     except Exception as e:
-        st.error(f"An error occurred: {e}")
+        st.error(f"预测失败，请检查输入数据或模型兼容性！\n错误信息: {e}")
